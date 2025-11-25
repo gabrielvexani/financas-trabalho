@@ -1,4 +1,5 @@
-// src/screens/TransactionsScreen.js
+// src/screens/TransactionsScreen.js (Comentada)
+// tela de listagem e filtragem de transações do usuário
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,27 +15,44 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../config/supabase';
 
+// Tela de listagem e filtragem de transações (receitas e despesas)
 export default function TransactionsScreen({ navigation }) {
+  // Lista completa de transações
   const [transactions, setTransactions] = useState([]);
+  // Lista filtrada (aplicando filtros em cima de transactions)
   const [filteredTransactions, setFilteredTransactions] = useState([]);
+
+  // Estado do refresh (puxar para atualizar)
   const [refreshing, setRefreshing] = useState(false);
-  const [filterType, setFilterType] = useState('all');
+
+  // Filtros principais
+  const [filterType, setFilterType] = useState('all'); // all | income | expense
   const [filterCategory, setFilterCategory] = useState('');
+
+  // Filtros de data (começo do mês atual até hoje)
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [endDate, setEndDate] = useState(new Date());
+
+  // Controle dos DatePickers
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  // Busca por texto (descrição/categoria)
   const [searchText, setSearchText] = useState('');
+
   const { user } = useAuth();
 
+  // Carrega as transações ao abrir
   useEffect(() => {
     loadTransactions();
   }, []);
 
+  // Reaplica filtros sempre que qualquer parâmetro mudar
   useEffect(() => {
     filterTransactions();
   }, [transactions, filterType, filterCategory, startDate, endDate, searchText]);
 
+  // Função que busca transações no Supabase
   const loadTransactions = async () => {
     const { data, error } = await supabase
       .from('transactions')
@@ -47,6 +65,7 @@ export default function TransactionsScreen({ navigation }) {
     }
   };
 
+  // Executa filtros locais sobre a lista em memória
   const filterTransactions = () => {
     let filtered = transactions;
 
@@ -62,13 +81,13 @@ export default function TransactionsScreen({ navigation }) {
       );
     }
 
-    // Filtrar por data
+    // Filtrar por intervalo de datas
     filtered = filtered.filter(t => {
       const transactionDate = new Date(t.date);
       return transactionDate >= startDate && transactionDate <= endDate;
     });
 
-    // Filtrar por texto de busca
+    // Filtrar por busca
     if (searchText) {
       filtered = filtered.filter(t =>
         t.description.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -79,12 +98,14 @@ export default function TransactionsScreen({ navigation }) {
     setFilteredTransactions(filtered);
   };
 
+  // Atualiza lista puxando para baixo
   const onRefresh = async () => {
     setRefreshing(true);
     await loadTransactions();
     setRefreshing(false);
   };
 
+  // Função para deletar transação
   const handleDeleteTransaction = async (transactionId) => {
     Alert.alert(
       'Confirmar Exclusão',
@@ -100,10 +121,10 @@ export default function TransactionsScreen({ navigation }) {
               .delete()
               .eq('id', transactionId);
 
-            if (error) {
-              Alert.alert('Erro', 'Não foi possível excluir a transação');
-            } else {
+            if (!error) {
               loadTransactions();
+            } else {
+              Alert.alert('Erro', 'Não foi possível excluir a transação');
             }
           },
         },
@@ -111,6 +132,7 @@ export default function TransactionsScreen({ navigation }) {
     );
   };
 
+  // Como cada transação aparece na lista
   const renderTransaction = ({ item }) => (
     <TouchableOpacity
       style={[
@@ -125,7 +147,7 @@ export default function TransactionsScreen({ navigation }) {
           {new Date(item.date).toLocaleDateString('pt-BR')}
         </Text>
       </View>
-      
+
       <View style={styles.transactionAmountContainer}>
         <Text style={[
           styles.transactionAmount,
@@ -145,11 +167,12 @@ export default function TransactionsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <Text style={styles.title}>Transações</Text>
       </View>
 
-      {/* Filtros */}
+      {/* Filtros principais */}
       <View style={styles.filters}>
         <TextInput
           style={styles.searchInput}
@@ -181,6 +204,7 @@ export default function TransactionsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* Filtro de datas */}
         <View style={styles.dateFilters}>
           <TouchableOpacity
             style={styles.dateButton}
@@ -201,6 +225,7 @@ export default function TransactionsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* DatePickers */}
         {showStartDatePicker && (
           <DateTimePicker
             value={startDate}
@@ -226,143 +251,8 @@ export default function TransactionsScreen({ navigation }) {
         )}
       </View>
 
-      {/* Lista de Transações */}
+      {/* Lista de transações */}
       <FlatList
         data={filteredTransactions}
         renderItem={renderTransaction}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            Nenhuma transação encontrada
-          </Text>
-        }
-        contentContainerStyle={styles.listContent}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: 20,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  filters: {
-    backgroundColor: 'white',
-    padding: 15,
-    marginBottom: 1,
-  },
-  searchInput: {
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-    fontSize: 16,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  filterButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  filterButtonActive: {
-    backgroundColor: '#007AFF',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  dateFilters: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dateButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  dateButtonText: {
-    fontSize: 12,
-    color: '#333',
-  },
-  listContent: {
-    padding: 15,
-  },
-  transactionCard: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderLeftWidth: 4,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionDescription: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  transactionCategory: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  transactionAmountContainer: {
-    alignItems: 'flex-end',
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  deleteButton: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  deleteButtonText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontStyle: 'italic',
-    marginTop: 50,
-  },
-});
+        keyExtractor={(item
