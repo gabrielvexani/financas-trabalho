@@ -1,3 +1,5 @@
+// ExpensesScreen.js
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,27 +16,31 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../config/supabase';
 
+// Tela para registrar novas despesas
 export default function ExpensesScreen({ navigation }) {
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [receipt, setReceipt] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Estados para formulário
+  const [amount, setAmount] = useState(''); // valor da despesa
+  const [description, setDescription] = useState(''); // descrição
+  const [category, setCategory] = useState(''); // categoria escolhida
+  const [date, setDate] = useState(new Date()); // data da despesa
+  const [showDatePicker, setShowDatePicker] = useState(false); // controle do calendário
+  const [receipt, setReceipt] = useState(null); // imagem comprovante
+  const [categories, setCategories] = useState([]); // lista de categorias
+  const [loading, setLoading] = useState(false); // loading do botão
   const { user } = useAuth();
 
-  // CATEGORIAS PADRÃO COMO FALLBACK
+  // Categorias padrão caso usuário não tenha criado nenhuma
   const defaultCategories = [
     'Alimentação', 'Transporte', 'Moradia', 'Saúde', 
     'Educação', 'Lazer', 'Compras', 'Outros'
   ];
 
+  // Carrega categorias ao abrir a tela
   useEffect(() => {
     loadCategories();
   }, []);
 
+  // Busca categorias do banco (ou usa padrão)
   const loadCategories = async () => {
     try {
       const { data, error } = await supabase
@@ -47,7 +53,6 @@ export default function ExpensesScreen({ navigation }) {
         console.log('Erro ao carregar categorias, usando padrão:', error);
         setCategories(defaultCategories.map(name => ({ id: name, name })));
       } else {
-        // Se não há categorias, usa as padrão
         if (data.length === 0) {
           setCategories(defaultCategories.map(name => ({ id: name, name })));
         } else {
@@ -55,16 +60,17 @@ export default function ExpensesScreen({ navigation }) {
         }
       }
     } catch (error) {
-      console.log('Erro crítico, usando categorias padrão:', error);
+      console.log('Erro crítico, usando padrão:', error);
       setCategories(defaultCategories.map(name => ({ id: name, name })));
     }
   };
 
+  // Selecionar imagem da galeria
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria para anexar comprovantes.');
+      Alert.alert('Permissão necessária', 'Acesso à galeria é necessário.');
       return;
     }
 
@@ -75,16 +81,15 @@ export default function ExpensesScreen({ navigation }) {
       quality: 0.8,
     });
 
-    if (!result.canceled) {
-      setReceipt(result.assets[0].uri);
-    }
+    if (!result.canceled) setReceipt(result.assets[0].uri);
   };
 
+  // Tirar foto usando a câmera
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
+
     if (status !== 'granted') {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para tirar fotos.');
+      Alert.alert('Permissão necessária', 'Acesso à câmera é necessário.');
       return;
     }
 
@@ -94,55 +99,51 @@ export default function ExpensesScreen({ navigation }) {
       quality: 0.8,
     });
 
-    if (!result.canceled) {
-      setReceipt(result.assets[0].uri);
-    }
+    if (!result.canceled) setReceipt(result.assets[0].uri);
   };
 
+  // Enviar nova despesa para o banco
   const handleSubmit = async () => {
     if (!amount || !description || !category) {
-      Alert.alert('Erro', 'Por favor, preencha valor, descrição e categoria');
+      Alert.alert('Erro', 'Preencha valor, descrição e categoria');
       return;
     }
 
-    // Validação do valor
+    // Converter valor
     const amountValue = parseFloat(amount.replace(',', '.'));
     if (isNaN(amountValue) || amountValue <= 0) {
-      Alert.alert('Erro', 'Por favor, insira um valor válido maior que zero');
+      Alert.alert('Erro', 'Insira um valor válido maior que zero');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          type: 'expense',
-          amount: amountValue,
-          description,
-          category,
-          date: date.toISOString().split('T')[0],
-          receipt_url: receipt, // Por enquanto sem upload
-        });
+      const { error } = await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'expense',
+        amount: amountValue,
+        description,
+        category,
+        date: date.toISOString().split('T')[0],
+        receipt_url: receipt, // ainda sem upload
+      });
 
       if (error) throw error;
 
-      Alert.alert('Sucesso', 'Despesa cadastrada com sucesso!');
+      Alert.alert('Sucesso', 'Despesa cadastrada!');
       navigation.goBack();
-      
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível cadastrar a despesa');
+      Alert.alert('Erro', 'Não foi possível cadastrar');
       console.error(error);
     }
     setLoading(false);
   };
 
-  // Função para formatar o valor
+  // Formatação simples do campo valor
   const handleAmountChange = (text) => {
     const cleanedText = text.replace(/[^0-9,.]/g, '');
     const formattedText = cleanedText.replace(',', '.');
-    
+
     if (formattedText === '' || !isNaN(formattedText)) {
       setAmount(cleanedText);
     }
@@ -150,11 +151,14 @@ export default function ExpensesScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <Text style={styles.title}>Nova Despesa</Text>
       </View>
 
+      {/* Formulário */}
       <View style={styles.form}>
+        {/* Valor */}
         <TextInput
           style={styles.input}
           placeholder="Valor (R$)"
@@ -163,6 +167,7 @@ export default function ExpensesScreen({ navigation }) {
           keyboardType="decimal-pad"
         />
 
+        {/* Descrição */}
         <TextInput
           style={styles.input}
           placeholder="Descrição"
@@ -170,13 +175,12 @@ export default function ExpensesScreen({ navigation }) {
           onChangeText={setDescription}
         />
 
+        {/* Data */}
         <TouchableOpacity
           style={styles.input}
           onPress={() => setShowDatePicker(true)}
         >
-          <Text style={styles.dateText}>
-            Data: {date.toLocaleDateString('pt-BR')}
-          </Text>
+          <Text style={styles.dateText}>Data: {date.toLocaleDateString('pt-BR')}</Text>
         </TouchableOpacity>
 
         {showDatePicker && (
@@ -191,231 +195,77 @@ export default function ExpensesScreen({ navigation }) {
           />
         )}
 
-        {/* SEÇÃO DE CATEGORIAS - MELHORADA */}
+        {/* Categorias */}
         <View style={styles.categoryContainer}>
           <Text style={styles.label}>Categoria:</Text>
-          <Text style={styles.subLabel}>
-            {categories.length === 0 ? 'Carregando categorias...' : 'Selecione uma categoria:'}
-          </Text>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoriesScroll}
-          >
+          <Text style={styles.subLabel}>Selecione uma categoria:</Text>
+
+          {/* Lista horizontal */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.id || cat.name}
-                style={[
-                  styles.categoryButton,
-                  category === cat.name && styles.categoryButtonSelected,
-                ]}
+                style={[styles.categoryButton, category === cat.name && styles.categoryButtonSelected]}
                 onPress={() => setCategory(cat.name)}
               >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    category === cat.name && styles.categoryTextSelected,
-                  ]}
-                >
+                <Text style={[styles.categoryText, category === cat.name && styles.categoryTextSelected]}>
                   {cat.name}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {/* Mostra a categoria selecionada */}
+          {/* Categoria escolhida */}
           {category ? (
-            <Text style={styles.selectedCategory}>
-              Categoria selecionada: <Text style={styles.selectedCategoryName}>{category}</Text>
-            </Text>
+            <Text style={styles.selectedCategory}>Selecionada: <Text style={styles.selectedCategoryName}>{category}</Text></Text>
           ) : (
-            <Text style={styles.noCategorySelected}>
-              Nenhuma categoria selecionada
-            </Text>
+            <Text style={styles.noCategorySelected}>Nenhuma categoria selecionada</Text>
           )}
         </View>
 
-        {/* SEÇÃO DE COMPROVANTE (OPCIONAL) */}
+        {/* Comprovante */}
         <View style={styles.receiptSection}>
           <Text style={styles.label}>Comprovante (opcional):</Text>
-          
-          {receipt && (
-            <Image source={{ uri: receipt }} style={styles.receiptImage} />
-          )}
-          
+
+          {receipt && <Image source={{ uri: receipt }} style={styles.receiptImage} />}
+
           <View style={styles.receiptButtons}>
             <TouchableOpacity style={styles.receiptButton} onPress={pickImage}>
               <Text style={styles.receiptButtonText}>📁 Galeria</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.receiptButton} onPress={takePhoto}>
               <Text style={styles.receiptButtonText}>📷 Câmera</Text>
             </TouchableOpacity>
-            
+
             {receipt && (
-              <TouchableOpacity 
-                style={[styles.receiptButton, styles.removeButton]}
-                onPress={() => setReceipt(null)}
-              >
+              <TouchableOpacity style={[styles.receiptButton, styles.removeButton]} onPress={() => setReceipt(null)}>
                 <Text style={styles.receiptButtonText}>❌ Remover</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
+        {/* Botão de envio */}
         <TouchableOpacity
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
         >
-          <Text style={styles.submitButtonText}>
-            {loading ? 'Cadastrando...' : 'Cadastrar Despesa'}
-          </Text>
+          <Text style={styles.submitButtonText}>{loading ? 'Cadastrando...' : 'Cadastrar Despesa'}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
+// Estilização visual da tela
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: 20,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  form: {
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  header: { backgroundColor: 'white', padding: 20, paddingTop: 60 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#333' },
+  form: { padding: 20 },
   input: {
     backgroundColor: 'white',
     padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    fontSize: 16,
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#333',
-  },
-  subLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 10,
-  },
-  categoryContainer: {
-    marginBottom: 20,
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  categoriesScroll: {
-    maxHeight: 60,
-    marginBottom: 10,
-  },
-  categoryButton: {
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryText: {
-    color: '#495057',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  categoryTextSelected: {
-    color: 'white',
-  },
-  selectedCategory: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  selectedCategoryName: {
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
-  noCategorySelected: {
-    fontSize: 14,
-    color: '#FF3B30',
-    marginTop: 10,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  receiptSection: {
-    marginBottom: 20,
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  receiptImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  receiptButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  receiptButton: {
-    backgroundColor: '#6c757d',
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  removeButton: {
-    backgroundColor: '#FF3B30',
-  },
-  receiptButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  submitButton: {
-    backgroundColor: '#FF3B30',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+    borderRadius:
