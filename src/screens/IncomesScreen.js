@@ -1,4 +1,6 @@
 // src/screens/IncomesScreen.js
+// Tela de cadastro de receitas. Similar à de despesas, mas voltada para entradas.
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,19 +16,22 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../config/supabase';
 
 export default function IncomesScreen({ navigation }) {
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [source, setSource] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  // Estados principais
+  const [amount, setAmount] = useState(''); // Valor da receita
+  const [description, setDescription] = useState(''); // Descrição
+  const [source, setSource] = useState(''); // Fonte (categoria)
+  const [date, setDate] = useState(new Date()); // Data
+  const [showDatePicker, setShowDatePicker] = useState(false); // Exibir seletor de data
+  const [categories, setCategories] = useState([]); // Categorias de receita do usuário
+  const [loading, setLoading] = useState(false); // Estado de carregamento
+  const { user } = useAuth(); // Usuário atual
 
+  // Carrega categorias de receita ao abrir a tela
   useEffect(() => {
     loadCategories();
   }, []);
 
+  // Carrega categorias do Supabase
   const loadCategories = async () => {
     const { data, error } = await supabase
       .from('categories')
@@ -39,6 +44,7 @@ export default function IncomesScreen({ navigation }) {
     }
   };
 
+  // Função para registrar a receita
   const handleSubmit = async () => {
     if (!amount || !description || !source) {
       Alert.alert('Erro', 'Por favor, preencha valor, descrição e fonte');
@@ -51,10 +57,10 @@ export default function IncomesScreen({ navigation }) {
         .from('transactions')
         .insert({
           user_id: user.id,
-          type: 'income',
+          type: 'income', // Tipo receita
           amount: parseFloat(amount),
           description,
-          category: source,
+          category: source, // Aqui a "fonte" vira categoria
           date: date.toISOString().split('T')[0],
         });
 
@@ -72,11 +78,14 @@ export default function IncomesScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <Text style={styles.title}>Nova Receita</Text>
       </View>
 
+      {/* Formulário */}
       <View style={styles.form}>
+        {/* Valor */}
         <TextInput
           style={styles.input}
           placeholder="Valor (R$)"
@@ -85,6 +94,7 @@ export default function IncomesScreen({ navigation }) {
           keyboardType="numeric"
         />
 
+        {/* Descrição */}
         <TextInput
           style={styles.input}
           placeholder="Descrição"
@@ -92,128 +102,6 @@ export default function IncomesScreen({ navigation }) {
           onChangeText={setDescription}
         />
 
+        {/* Fonte (categoria de receita) */}
         <TextInput
-          style={styles.input}
-          placeholder="Fonte (ex: Salário, Freelance)"
-          value={source}
-          onChangeText={setSource}
-        />
-
-        <TouchableOpacity
-          style={styles.input}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={styles.dateText}>
-            Data: {date.toLocaleDateString('pt-BR')}
-          </Text>
-        </TouchableOpacity>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              if (selectedDate) setDate(selectedDate);
-            }}
-          />
-        )}
-
-        <View style={styles.categoryContainer}>
-          <Text style={styles.label}>Fontes Sugeridas:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={styles.categoryButton}
-                onPress={() => setSource(cat.name)}
-              >
-                <Text style={styles.categoryText}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Text style={styles.submitButtonText}>
-            {loading ? 'Cadastrando...' : 'Cadastrar Receita'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: 20,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  form: {
-    padding: 20,
-  },
-  input: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    fontSize: 16,
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  categoryContainer: {
-    marginBottom: 20,
-  },
-  categoryButton: {
-    backgroundColor: 'white',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  categoryText: {
-    color: '#333',
-    fontSize: 14,
-  },
-  submitButton: {
-    backgroundColor: '#34C759',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+          style={style
